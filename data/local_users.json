@@ -1,0 +1,18 @@
+{
+  "users": {
+    "demo@example.com": {
+      "uid": "fb_uid_demo_user_101",
+      "email": "demo@example.com",
+      "display_name": "Demo User",
+      "password_hash": "88df719d595f24ae504315fd401d3e551c2262ca7d4464cc6ad86c182de0b44f",
+      "salt": "notes_salt_123"
+    },
+    "user2@test.com": {
+      "uid": "fb_uid_6d675ef4c97b2a02",
+      "email": "user2@test.com",
+      "display_name": "Jane Doe",
+      "password_hash": "e3143eb5588cfd6db323e18026a6da143371a31c7e8c2a38c950ffbc366bf977",
+      "salt": "a997501e64a91ee000862448d1720848"
+    }
+  }
+}

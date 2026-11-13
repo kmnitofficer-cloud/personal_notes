@@ -231,12 +231,13 @@ def handle_component_action(event: dict):
             st.rerun()
 
         user_uid = st.session_state["user"]["uid"]
+        username = st.session_state["user"].get("name") or st.session_state["user"].get("username", "")
         note_id = payload.get("note_id")
 
         try:
-            excel_manager.delete_note(note_id, user_uid)
+            excel_manager.delete_note(note_id, user_uid, username=username)
             st.session_state["notes"] = excel_manager.get_notes_for_user(user_uid, force_remote_sync=False)
-            st.session_state["toast"] = "Note deleted successfully."
+            st.session_state["toast"] = "Note deleted from active list & archived in backup."
             st.session_state["error"] = None
         except PermissionError as pe:
             st.session_state["error"] = str(pe)

@@ -19,6 +19,8 @@ config/service_account.json
 *.lock
 data/personal_notes.xlsx
 personal_notes.xlsx
+data/personal_notes_backup.xlsx
+personal_notes_backup.xlsx
 *.log
 
 # OS generated files

@@ -126,6 +126,8 @@ function applyServerState(serverState) {
       const rememberMe = localStorage.getItem("farm_notes_remember_me") === "true";
       const savedToken = localStorage.getItem("farm_notes_session_token");
       if (rememberMe && savedToken) {
+        const statusText = document.getElementById("authStatusText");
+        if (statusText) statusText.textContent = "Restoring saved session...";
         sendToStreamlit("login", { idToken: savedToken });
         return;
       }

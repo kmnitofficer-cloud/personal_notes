@@ -157,7 +157,7 @@ def handle_component_action(event: dict):
                 st.session_state["error"] = None
             else:
                 st.session_state["authenticated"] = False
-                st.session_state["error"] = "Invalid or expired authentication token."
+                st.session_state["error"] = None
         else:
             ok, user_data, err_msg = auth_manager.sign_in_with_username_or_email(
                 username, password

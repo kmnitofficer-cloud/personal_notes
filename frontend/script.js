@@ -30,6 +30,8 @@ let appState = {
   activeDeleteNoteId: null,
 };
 
+let autoLoginAttempted = false;
+
 // ===================================================================
 // STREAMLIT COMPONENT BRIDGE
 // ===================================================================
@@ -93,8 +95,20 @@ function applyServerState(serverState) {
     appState.backendStatus = serverState.backend_status;
   }
 
+  // Store session token if remember me is active
+  if (appState.authenticated && appState.user && appState.user.token) {
+    try {
+      if (localStorage.getItem("farm_notes_remember_me") === "true") {
+        localStorage.setItem("farm_notes_session_token", appState.user.token);
+      }
+    } catch (e) {}
+  }
+
   // Handle alerts & toasts
   if (serverState.error) {
+    try {
+      localStorage.removeItem("farm_notes_session_token");
+    } catch (e) {}
     showAuthError(serverState.error);
     showToast(serverState.error, "error");
   } else {
@@ -103,6 +117,19 @@ function applyServerState(serverState) {
 
   if (serverState.toast) {
     showToast(serverState.toast, "success");
+  }
+
+  // Auto-login check if not authenticated yet and remember_me is enabled
+  if (!appState.authenticated && !autoLoginAttempted) {
+    autoLoginAttempted = true;
+    try {
+      const rememberMe = localStorage.getItem("farm_notes_remember_me") === "true";
+      const savedToken = localStorage.getItem("farm_notes_session_token");
+      if (rememberMe && savedToken) {
+        sendToStreamlit("login", { idToken: savedToken });
+        return;
+      }
+    } catch (e) {}
   }
 
   // Render proper view
@@ -137,6 +164,7 @@ window.addEventListener("resize", updateFrameHeight);
 function showAuthView() {
   document.getElementById("authView").style.display = "flex";
   document.getElementById("dashboardView").style.display = "none";
+  loadRememberedCredentials();
 
   const statusPill = document.getElementById("authStatusPill");
   const statusText = document.getElementById("authStatusText");
@@ -154,6 +182,39 @@ function showAuthView() {
   } else {
     dot.className = "status-dot local-mode";
     statusText.textContent = `Drive: ${drive.is_connected ? "Live" : "Local"} | Firebase: ${firebase.is_live ? "Live" : "Local"}`;
+  }
+}
+
+function loadRememberedCredentials() {
+  try {
+    const rememberMe = localStorage.getItem("farm_notes_remember_me") === "true";
+    const savedUser = localStorage.getItem("farm_notes_saved_username") || "";
+    const checkbox = document.getElementById("rememberMeCheckbox");
+    const userField = document.getElementById("loginUsername");
+    const passField = document.getElementById("loginPassword");
+
+    if (checkbox) {
+      checkbox.checked = rememberMe;
+    }
+    if (rememberMe && savedUser && userField) {
+      userField.value = savedUser;
+      if (passField && document.activeElement !== userField) {
+        passField.focus();
+      }
+    }
+  } catch (e) {
+    console.warn("Could not load remembered credentials:", e);
+  }
+}
+
+function handleRememberMeChange() {
+  const checkbox = document.getElementById("rememberMeCheckbox");
+  if (!checkbox.checked) {
+    try {
+      localStorage.removeItem("farm_notes_remember_me");
+      localStorage.removeItem("farm_notes_saved_username");
+      localStorage.removeItem("farm_notes_session_token");
+    } catch (e) {}
   }
 }
 
@@ -197,10 +258,26 @@ function handleLoginSubmit(event) {
 
   const username = document.getElementById("loginUsername").value.trim();
   const password = document.getElementById("loginPassword").value;
+  const rememberCheckbox = document.getElementById("rememberMeCheckbox");
+  const rememberMe = rememberCheckbox ? rememberCheckbox.checked : false;
 
   if (!username || !password) {
     showAuthError("Please enter both username and password.");
     return;
+  }
+
+  // Handle Remember Me credentials saving
+  try {
+    if (rememberMe) {
+      localStorage.setItem("farm_notes_remember_me", "true");
+      localStorage.setItem("farm_notes_saved_username", username);
+    } else {
+      localStorage.removeItem("farm_notes_remember_me");
+      localStorage.removeItem("farm_notes_saved_username");
+      localStorage.removeItem("farm_notes_session_token");
+    }
+  } catch (e) {
+    console.warn("Could not save to localStorage:", e);
   }
 
   const submitBtn = document.getElementById("loginSubmitBtn");
@@ -223,6 +300,9 @@ function handleLoginSubmit(event) {
 }
 
 function handleLogout() {
+  try {
+    localStorage.removeItem("farm_notes_session_token");
+  } catch (e) {}
   sendToStreamlit("logout", {});
 }
 

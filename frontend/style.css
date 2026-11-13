@@ -218,6 +218,78 @@ select {
   padding-left: 38px;
 }
 
+/* Remember Me Options */
+.form-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  margin-bottom: 22px;
+}
+
+.remember-me-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--slate-600);
+  transition: color 0.15s ease;
+}
+
+.remember-me-label:hover {
+  color: var(--slate-900);
+}
+
+.remember-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.custom-checkbox-ui {
+  width: 19px;
+  height: 19px;
+  border: 1.5px solid var(--slate-300);
+  border-radius: 5px;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.custom-checkbox-ui svg {
+  width: 12px;
+  height: 12px;
+  stroke: #ffffff;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.remember-checkbox:checked + .custom-checkbox-ui {
+  background-color: var(--primary-600);
+  border-color: var(--primary-600);
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.25);
+}
+
+.remember-checkbox:checked + .custom-checkbox-ui svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.remember-checkbox:focus-visible + .custom-checkbox-ui {
+  outline: 2px solid var(--primary-500);
+  outline-offset: 2px;
+}
+
 input:focus,
 textarea:focus,
 select:focus {

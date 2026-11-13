@@ -31,6 +31,42 @@ let appState = {
 };
 
 let autoLoginAttempted = false;
+let lastSeenToastId = null;
+let lottieAnim = null;
+
+function initLottieLoader() {
+  const container = document.getElementById("lottieLoaderContainer");
+  if (!container || lottieAnim) return;
+
+  if (typeof lottie !== "undefined" && window.NOTES_ANIMATION_DATA) {
+    try {
+      lottieAnim = lottie.loadAnimation({
+        container: container,
+        renderer: "svg",
+        loop: true,
+        autoplay: true,
+        animationData: window.NOTES_ANIMATION_DATA,
+      });
+    } catch (e) {
+      console.warn("Lottie initialization fallback:", e);
+    }
+  }
+}
+
+function setLoadingStatus(msg) {
+  const elem = document.getElementById("loadingStatusText");
+  if (elem) elem.textContent = msg;
+}
+
+function hideLoadingScreen() {
+  const overlay = document.getElementById("appLoadingScreen");
+  if (overlay && !overlay.classList.contains("fade-out")) {
+    overlay.classList.add("fade-out");
+    setTimeout(() => {
+      overlay.style.display = "none";
+    }, 380);
+  }
+}
 
 // ===================================================================
 // STREAMLIT COMPONENT BRIDGE
@@ -115,8 +151,13 @@ function applyServerState(serverState) {
     hideAuthError();
   }
 
+  // Handle toast notifications without duplication
   if (serverState.toast) {
-    showToast(serverState.toast, "success");
+    const tId = serverState.toast_id || serverState.toast;
+    if (tId !== lastSeenToastId) {
+      lastSeenToastId = tId;
+      showToast(serverState.toast, "success");
+    }
   }
 
   // Auto-login check if not authenticated yet and remember_me is enabled
@@ -126,8 +167,7 @@ function applyServerState(serverState) {
       const rememberMe = localStorage.getItem("farm_notes_remember_me") === "true";
       const savedToken = localStorage.getItem("farm_notes_session_token");
       if (rememberMe && savedToken) {
-        const statusText = document.getElementById("authStatusText");
-        if (statusText) statusText.textContent = "Restoring saved session...";
+        setLoadingStatus("Restoring officer workspace...");
         sendToStreamlit("login", { idToken: savedToken });
         return;
       }
@@ -137,14 +177,21 @@ function applyServerState(serverState) {
   // Render proper view
   if (appState.authenticated && appState.user) {
     showDashboardView();
+    hideLoadingScreen();
   } else {
     showAuthView();
+    hideLoadingScreen();
   }
 
   updateFrameHeight();
 }
 
+document.addEventListener("DOMContentLoaded", () => {
+  initLottieLoader();
+});
+
 window.addEventListener("load", () => {
+  initLottieLoader();
   window.parent.postMessage(
     {
       isStreamlitMessage: true,
@@ -706,6 +753,16 @@ document.addEventListener("click", (e) => {
 
 function showToast(message, type = "info") {
   const container = document.getElementById("toastContainer");
+  if (!container || !message) return;
+
+  // Prevent duplicate toast if already showing the same text
+  const currentSpans = container.querySelectorAll(".toast span");
+  for (let span of currentSpans) {
+    if (span.textContent.trim() === message.trim()) {
+      return; // Skip duplicate toast!
+    }
+  }
+
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
 

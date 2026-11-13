@@ -14,11 +14,23 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Full Screen Lottie Loading / Splash Overlay -->
+  <div id="appLoadingScreen" class="loading-screen-overlay">
+    <div class="loading-card">
+      <div id="lottieLoaderContainer" class="lottie-box"></div>
+      <h3 class="loading-title">Field Notes Workspace</h3>
+      <p id="loadingStatusText" class="loading-subtitle">Loading workspace...</p>
+      <div class="loading-pulse-bar">
+        <div class="loading-pulse-fill"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
   <!-- ==================== AUTH VIEW (LOGIN / SIGN UP) ==================== -->
-  <div id="authView" class="auth-wrapper">
+  <div id="authView" class="auth-wrapper" style="display: none;">
     <div class="auth-card">
       <div class="auth-header">
         <div class="app-brand-badge">
@@ -493,6 +505,8 @@
     </div>
   </div>
 
+  <script src="lottie.min.js"></script>
+  <script src="animation_data.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

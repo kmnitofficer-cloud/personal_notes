@@ -263,6 +263,7 @@ def handle_component_action(event: dict):
 # Prepare state dictionary to send into the frontend component
 toast_to_send = st.session_state.get("toast")
 error_to_send = st.session_state.get("error")
+toast_id = f"toast_{time.time()}_{abs(hash(toast_to_send))}" if toast_to_send else None
 
 # Consume one-shot messages
 st.session_state["toast"] = None
@@ -288,6 +289,7 @@ component_state = {
         },
     },
     "toast": toast_to_send,
+    "toast_id": toast_id,
     "error": error_to_send,
     "timestamp": time.time(),
 }

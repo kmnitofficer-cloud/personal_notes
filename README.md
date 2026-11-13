@@ -99,11 +99,23 @@ streamlit run app.py
 ```
 Open your browser at `http://localhost:8501`.
 
-### 4. Test Demo Credentials
-- Click **"⚡ Fill Demo Account"** or enter:
-  - **Email:** `demo@example.com`
-  - **Password:** `password123`
-- Or click the **"Create Account"** tab to register any new test user!
+## 👥 Officer Accounts & Passwords
+
+Here is the complete credentials list for all authorized officers:
+
+| Officer / Username | Display Name | Assigned Zone | Firebase Account | Password |
+|---|---|---|---|---|
+| **`vishmika`** | **Mr. Vishmika** | **Chilaw** | `vishmika@farmnotes.internal` | **`password123`** |
+| **`janaka`** | **Mr. Janaka** | **Puttalam** | `janaka@farmnotes.internal` | **`password123`** |
+| **`shashika`** | **Mr. Shashika** | **Puttalam** | `shashika@farmnotes.internal` | **`password123`** |
+| **`ashen`** | **Mr. Ashen** | **Middle Zone** | `ashen@farmnotes.internal` | **`password123`** |
+| **`janushan`** | **Mr. Janushan** | **Middle Zone** | `janushan@farmnotes.internal` | **`password123`** |
+
+- **Secure Login:** Officers enter their **Username** and **Password** (no public registration or one-click bypass).
+- **Instant Save & Non-Blocking Sync:** Notes are saved locally in milliseconds and synced automatically to Google Drive in a background thread, eliminating UI lag.
+- **Card Click for Full Details:** Long notes are cleanly truncated on the card with a 3-line clamp; clicking anywhere on the card opens the full note details modal.
+- **Delete Only:** Note editing has been removed; officers can view full details or delete notes.
+
 
 ---
 

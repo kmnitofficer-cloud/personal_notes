@@ -13,6 +13,51 @@
       "display_name": "Jane Doe",
       "password_hash": "e3143eb5588cfd6db323e18026a6da143371a31c7e8c2a38c950ffbc366bf977",
       "salt": "a997501e64a91ee000862448d1720848"
+    },
+    "vishmika": {
+      "uid": "fb_uid_vishmika_chilaw",
+      "username": "vishmika",
+      "email": "vishmika@farmnotes.internal",
+      "display_name": "Mr. Vishmika",
+      "zone": "Chilaw",
+      "password_hash": "de4e27a106c6dd100fef2327645eca2878ce6ed149f6b2b70ed26938a8f064c7",
+      "salt": "farm_notes_salt_2026"
+    },
+    "janaka": {
+      "uid": "fb_uid_janaka_puttalam",
+      "username": "janaka",
+      "email": "janaka@farmnotes.internal",
+      "display_name": "Mr. Janaka",
+      "zone": "Puttalam",
+      "password_hash": "de4e27a106c6dd100fef2327645eca2878ce6ed149f6b2b70ed26938a8f064c7",
+      "salt": "farm_notes_salt_2026"
+    },
+    "shashika": {
+      "uid": "fb_uid_shashika_puttalam",
+      "username": "shashika",
+      "email": "shashika@farmnotes.internal",
+      "display_name": "Mr. Shashika",
+      "zone": "Puttalam",
+      "password_hash": "de4e27a106c6dd100fef2327645eca2878ce6ed149f6b2b70ed26938a8f064c7",
+      "salt": "farm_notes_salt_2026"
+    },
+    "ashen": {
+      "uid": "fb_uid_ashen_middlezone",
+      "username": "ashen",
+      "email": "ashen@farmnotes.internal",
+      "display_name": "Mr. Ashen",
+      "zone": "Middle Zone",
+      "password_hash": "de4e27a106c6dd100fef2327645eca2878ce6ed149f6b2b70ed26938a8f064c7",
+      "salt": "farm_notes_salt_2026"
+    },
+    "janushan": {
+      "uid": "fb_uid_janushan_middlezone",
+      "username": "janushan",
+      "email": "janushan@farmnotes.internal",
+      "display_name": "Mr. Janushan",
+      "zone": "Middle Zone",
+      "password_hash": "de4e27a106c6dd100fef2327645eca2878ce6ed149f6b2b70ed26938a8f064c7",
+      "salt": "farm_notes_salt_2026"
     }
   }
 }

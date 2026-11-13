@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Personal Notes Management</title>
+  <title>Personal Notes Management - Running List Hub</title>
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -17,7 +17,7 @@
   <!-- Toast Notification Container -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <!-- ==================== AUTH VIEW ==================== -->
+  <!-- ==================== AUTH VIEW (LOGIN / SIGN UP) ==================== -->
   <div id="authView" class="auth-wrapper">
     <div class="auth-card">
       <div class="auth-header">
@@ -30,11 +30,11 @@
             <polyline points="10 9 9 9 8 9" />
           </svg>
         </div>
-        <h1 class="auth-title">Personal Notes Hub</h1>
-        <p class="auth-subtitle">Secure personal note management backed by Google Drive & Firebase</p>
+        <h1 class="auth-title">Field Notes Workspace</h1>
+        <p class="auth-subtitle">Customer & Farm Notes linked with Running List & Google Drive</p>
       </div>
 
-      <!-- System status pill -->
+      <!-- System status banner -->
       <div id="authStatusPill" class="system-status-banner">
         <span class="status-dot"></span>
         <span id="authStatusText">Checking backend services...</span>
@@ -50,22 +50,22 @@
         <span id="authErrorMessage" class="alert-text"></span>
       </div>
 
-      <!-- Auth Tabs -->
-      <div class="auth-tabs">
-        <button id="tabLogin" class="tab-btn active" onclick="switchAuthTab('login')">Sign In</button>
-        <button id="tabRegister" class="tab-btn" onclick="switchAuthTab('register')">Create Account</button>
-      </div>
-
-      <!-- Sign In Form -->
+      <!-- Sign In Form (Username and Password) -->
       <form id="loginForm" class="auth-form" onsubmit="handleLoginSubmit(event)">
         <div class="form-group">
-          <label for="loginEmail">Email Address</label>
+          <label for="loginUsername">Officer Username</label>
           <div class="input-with-icon">
             <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-              <polyline points="22,6 12,13 2,6" />
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
             </svg>
-            <input type="email" id="loginEmail" placeholder="you@company.com" required autocomplete="email" />
+            <input
+              type="text"
+              id="loginUsername"
+              placeholder="Enter your assigned username"
+              required
+              autocomplete="username"
+            />
           </div>
         </div>
 
@@ -76,64 +76,18 @@
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
-            <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password" />
+            <input
+              type="password"
+              id="loginPassword"
+              placeholder="••••••••"
+              required
+              autocomplete="current-password"
+            />
           </div>
         </div>
 
         <button type="submit" id="loginSubmitBtn" class="btn btn-primary btn-block">
           <span>Sign In to Dashboard</span>
-          <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="5" y1="12" x2="19" y2="12" />
-            <polyline points="12 5 19 12 12 19" />
-          </svg>
-        </button>
-
-        <!-- Quick Demo Fill -->
-        <div class="demo-login-box">
-          <div class="demo-divider"><span>OR QUICK START</span></div>
-          <button type="button" class="btn btn-outline btn-block btn-sm" onclick="fillDemoCredentials()">
-            ⚡ Fill Demo Account (demo@example.com)
-          </button>
-        </div>
-      </form>
-
-      <!-- Register Form -->
-      <form id="registerForm" class="auth-form" style="display: none;" onsubmit="handleRegisterSubmit(event)">
-        <div class="form-group">
-          <label for="regName">Your Full Name</label>
-          <div class="input-with-icon">
-            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            <input type="text" id="regName" placeholder="Alex Morgan" required autocomplete="name" />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="regEmail">Email Address</label>
-          <div class="input-with-icon">
-            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-              <polyline points="22,6 12,13 2,6" />
-            </svg>
-            <input type="email" id="regEmail" placeholder="you@company.com" required autocomplete="email" />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="regPassword">Password (min 6 characters)</label>
-          <div class="input-with-icon">
-            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
-            <input type="password" id="regPassword" placeholder="••••••••" required minlength="6" autocomplete="new-password" />
-          </div>
-        </div>
-
-        <button type="submit" id="registerSubmitBtn" class="btn btn-primary btn-block">
-          <span>Create My Account</span>
           <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="5" y1="12" x2="19" y2="12" />
             <polyline points="12 5 19 12 12 19" />
@@ -147,7 +101,7 @@
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          <span>Isolated by verified Firebase UID. Users only see their own notes.</span>
+          <span>Firebase UID verified access control. Officers only view their assigned zone & notes.</span>
         </div>
       </div>
     </div>
@@ -155,7 +109,7 @@
 
   <!-- ==================== DASHBOARD VIEW ==================== -->
   <div id="dashboardView" class="dashboard-wrapper" style="display: none;">
-    <!-- Top Header Navigation -->
+    <!-- Top Navigation -->
     <header class="app-nav">
       <div class="nav-left">
         <div class="nav-brand">
@@ -168,27 +122,27 @@
             </svg>
           </div>
           <div>
-            <h2 class="nav-brand-title">Notes Workspace</h2>
-            <span class="nav-brand-sub">Excel on Google Drive</span>
+            <h2 class="nav-brand-title">Field Notes Workspace</h2>
+            <span class="nav-brand-sub" id="navBrandSubtitle">Running List • Excel Google Drive</span>
           </div>
         </div>
 
-        <div id="systemStatusPills" class="system-status-cluster">
+        <div class="system-status-cluster">
+          <span id="userZoneBadge" class="badge badge-zone">
+            📍 <span id="userZoneBadgeText">Zone</span>
+          </span>
           <span id="driveStatusPill" class="badge badge-subtle">
             <span class="status-dot"></span> <span id="driveStatusLabel">Drive Storage</span>
-          </span>
-          <span id="authStatusPillDash" class="badge badge-subtle">
-            <span class="status-dot"></span> <span id="authStatusLabel">Auth Verified</span>
           </span>
         </div>
       </div>
 
       <div class="nav-right">
         <div class="user-profile-badge">
-          <div class="user-avatar" id="userAvatarText">U</div>
+          <div class="user-avatar" id="userAvatarText">V</div>
           <div class="user-meta">
-            <span class="user-display-name" id="navUserName">User</span>
-            <span class="user-uid-snippet" id="navUserUid" title="Authenticated Firebase UID">UID</span>
+            <span class="user-display-name" id="navUserName">Officer</span>
+            <span class="user-uid-snippet" id="navUserZoneSnippet">Zone</span>
           </div>
         </div>
 
@@ -203,75 +157,81 @@
       </div>
     </header>
 
-    <!-- Main Content Container -->
+    <!-- Main Dashboard Body -->
     <main class="dashboard-main">
       <!-- Welcome Hero Section -->
       <section class="welcome-section">
         <div class="welcome-content">
           <div class="welcome-heading-row">
-            <h1 class="welcome-title">Welcome back, <span id="welcomeUserName" class="highlight-name">User</span> 👋</h1>
+            <h1 class="welcome-title">
+              Welcome, <span id="welcomeUserName" class="highlight-name">Officer</span> 👋
+            </h1>
+            <span class="zone-pill-highlight" id="welcomeUserZonePill">Chilaw Zone</span>
             <p class="welcome-date" id="currentDateStr"></p>
           </div>
-          <p class="welcome-subtext">Manage, categorize, and securely store your personal notes.</p>
+          <p class="welcome-subtext" id="welcomeSubtext">
+            Viewing customers and farm records assigned to your zone from Running List.
+          </p>
         </div>
 
         <!-- Quick Summary Stats -->
         <div class="stats-cards-row">
           <div class="stat-pill">
-            <span class="stat-label">Total Notes</span>
+            <span class="stat-label">My Notes</span>
             <span class="stat-value" id="statTotalNotes">0</span>
           </div>
           <div class="stat-pill">
-            <span class="stat-label">Work</span>
-            <span class="stat-value" id="statWorkNotes">0</span>
+            <span class="stat-label">Zone Customers</span>
+            <span class="stat-value" id="statZoneCustomers">0</span>
           </div>
           <div class="stat-pill">
-            <span class="stat-label">Personal</span>
-            <span class="stat-value" id="statPersonalNotes">0</span>
-          </div>
-          <div class="stat-pill">
-            <span class="stat-label">High Priority</span>
-            <span class="stat-value" id="statHighPriority">0</span>
+            <span class="stat-label">Zone Farms</span>
+            <span class="stat-value" id="statZoneFarms">0</span>
           </div>
         </div>
       </section>
 
-      <!-- Action & Controls Bar (Requirements: Two selection boxes + Add button) -->
+      <!-- Action & Controls Bar (Requirements: Customer Name + Farm Name with Code + Add Button) -->
       <section class="controls-panel">
         <div class="controls-card">
+          <div class="controls-card-header">
+            <span class="section-badge">SELECT & CREATE NOTE</span>
+            <span class="controls-helper-text">Filtered specifically for your zone</span>
+          </div>
           <div class="controls-grid">
-            <!-- Dropdown 1: Category -->
+            <!-- Dropdown 1: Customer Name (Selection 1) -->
             <div class="control-field">
-              <label for="dashboardSelect1" class="field-label">
+              <label for="dashboardCustomerSelect" class="field-label">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
                 </svg>
-                Selection 1 (Category)
+                Customer Name (Selection 1)
               </label>
-              <select id="dashboardSelect1" class="select-input">
-                <option value="Work">💼 Work</option>
-                <option value="Personal">🏡 Personal</option>
-                <option value="Ideas">💡 Ideas & Innovations</option>
-                <option value="Meetings">🤝 Meeting Notes</option>
-                <option value="Projects">🚀 Active Projects</option>
-                <option value="Urgent">🔥 Urgent Tasks</option>
-                <option value="Study">📚 Learning & Research</option>
+              <select
+                id="dashboardCustomerSelect"
+                class="select-input"
+                onchange="handleDashboardCustomerChange()"
+              >
+                <option value="">-- Choose Customer --</option>
               </select>
             </div>
 
-            <!-- Dropdown 2: Priority / Tag -->
+            <!-- Dropdown 2: Farm Name with Code (Selection 2) -->
             <div class="control-field">
-              <label for="dashboardSelect2" class="field-label">
+              <label for="dashboardFarmSelect" class="field-label">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
                 </svg>
-                Selection 2 (Priority)
+                Farm Name with Code (Selection 2)
               </label>
-              <select id="dashboardSelect2" class="select-input">
-                <option value="High">🔴 High Priority</option>
-                <option value="Medium" selected>🟡 Medium Priority</option>
-                <option value="Low">🟢 Low Priority</option>
-                <option value="Critical">⚡ Critical / Blocker</option>
+              <select
+                id="dashboardFarmSelect"
+                class="select-input"
+                onchange="handleDashboardFarmChange()"
+              >
+                <option value="">-- Choose Farm with Code --</option>
               </select>
             </div>
 
@@ -300,36 +260,25 @@
             <input
               type="text"
               id="searchNotesInput"
-              placeholder="Search in your notes..."
+              placeholder="Search content, customer, or farm code..."
               oninput="handleSearchFilterChange()"
             />
             <button id="clearSearchBtn" class="clear-btn" onclick="clearSearch()" style="display: none;">✕</button>
           </div>
 
           <div class="filter-group">
-            <select id="filterCategory" class="filter-select" onchange="handleSearchFilterChange()">
-              <option value="">All Categories</option>
-              <option value="Work">Work</option>
-              <option value="Personal">Personal</option>
-              <option value="Ideas">Ideas</option>
-              <option value="Meetings">Meetings</option>
-              <option value="Projects">Projects</option>
-              <option value="Urgent">Urgent</option>
-              <option value="Study">Study</option>
+            <select id="filterCustomer" class="filter-select" onchange="handleSearchFilterChange()">
+              <option value="">All Customers in My Zone</option>
             </select>
 
-            <select id="filterPriority" class="filter-select" onchange="handleSearchFilterChange()">
-              <option value="">All Priorities</option>
-              <option value="Critical">Critical</option>
-              <option value="High">High</option>
-              <option value="Medium">Medium</option>
-              <option value="Low">Low</option>
+            <select id="filterFarm" class="filter-select" onchange="handleSearchFilterChange()">
+              <option value="">All Farms with Code</option>
             </select>
           </div>
         </div>
 
         <div class="toolbar-right">
-          <button class="btn btn-ghost btn-sm" onclick="triggerRefresh()" title="Reload from Google Drive">
+          <button class="btn btn-ghost btn-sm" onclick="triggerRefresh()" title="Sync with Google Drive">
             <svg id="refreshIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="23 4 23 10 17 10" />
               <polyline points="1 20 1 14 7 14" />
@@ -340,7 +289,7 @@
         </div>
       </section>
 
-      <!-- Notes Grid Area -->
+      <!-- Notes Grid Display -->
       <section class="notes-display-section">
         <!-- Empty State -->
         <div id="notesEmptyState" class="empty-state-card" style="display: none;">
@@ -353,13 +302,15 @@
             </svg>
           </div>
           <h3 class="empty-title">No notes found</h3>
-          <p class="empty-description" id="emptyStateMessage">You haven't created any notes yet. Click below to add your first note!</p>
+          <p class="empty-description" id="emptyStateMessage">
+            You haven't recorded any notes for your zone yet. Click below to add your first note!
+          </p>
           <button class="btn btn-primary btn-sm" onclick="openAddNoteModal()">
-            <span>Create Your First Note</span>
+            <span>Record Your First Note</span>
           </button>
         </div>
 
-        <!-- Note Cards Grid -->
+        <!-- Dynamic Note Cards Grid -->
         <div id="notesGrid" class="notes-grid"></div>
       </section>
     </main>
@@ -377,8 +328,8 @@
             </svg>
           </div>
           <div>
-            <h3 class="modal-title" id="modalTitle">Create New Note</h3>
-            <p class="modal-subtitle">Saved securely in Google Drive Excel with your Firebase UID</p>
+            <h3 class="modal-title" id="modalTitle">Create Field Note</h3>
+            <p class="modal-subtitle">Saved with your Firebase UID in central Google Drive Excel</p>
           </div>
         </div>
         <button class="modal-close-btn" onclick="closeNoteModal()" aria-label="Close">✕</button>
@@ -388,28 +339,29 @@
         <input type="hidden" id="modalNoteId" value="" />
 
         <div class="modal-form-grid">
-          <!-- Selection 1 -->
+          <!-- Selection 1: Customer Name -->
           <div class="form-group">
-            <label for="modalSelect1">Category (Selection 1)</label>
-            <select id="modalSelect1" class="select-input" required>
-              <option value="Work">💼 Work</option>
-              <option value="Personal">🏡 Personal</option>
-              <option value="Ideas">💡 Ideas & Innovations</option>
-              <option value="Meetings">🤝 Meeting Notes</option>
-              <option value="Projects">🚀 Active Projects</option>
-              <option value="Urgent">🔥 Urgent Tasks</option>
-              <option value="Study">📚 Learning & Research</option>
+            <label for="modalCustomerSelect">Customer Name (Selection 1)</label>
+            <select
+              id="modalCustomerSelect"
+              class="select-input"
+              required
+              onchange="handleModalCustomerChange()"
+            >
+              <option value="">-- Choose Customer --</option>
             </select>
           </div>
 
-          <!-- Selection 2 -->
+          <!-- Selection 2: Farm Name with Code -->
           <div class="form-group">
-            <label for="modalSelect2">Priority (Selection 2)</label>
-            <select id="modalSelect2" class="select-input" required>
-              <option value="Critical">⚡ Critical</option>
-              <option value="High">🔴 High</option>
-              <option value="Medium">🟡 Medium</option>
-              <option value="Low">🟢 Low</option>
+            <label for="modalFarmSelect">Farm Name with Code (Selection 2)</label>
+            <select
+              id="modalFarmSelect"
+              class="select-input"
+              required
+              onchange="handleModalFarmChange()"
+            >
+              <option value="">-- Choose Farm with Code --</option>
             </select>
           </div>
         </div>
@@ -417,13 +369,13 @@
         <!-- Note Content -->
         <div class="form-group">
           <div class="textarea-header">
-            <label for="modalNoteContent">Note Content</label>
+            <label for="modalNoteContent">Note / Field Observations</label>
             <span id="charCount" class="char-count">0 characters</span>
           </div>
           <textarea
             id="modalNoteContent"
             rows="6"
-            placeholder="Type your note content here... Supports markdown and multiline text."
+            placeholder="Type observations, feed orders, pond conditions, or farmer requests here..."
             required
             oninput="updateCharCount()"
           ></textarea>
@@ -442,6 +394,51 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ==================== NOTE DETAILS MODAL (FULL VIEW) ==================== -->
+  <div id="viewNoteModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-card modal-view-card">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <div class="modal-badge-icon badge-view">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="modal-title" id="viewModalCustomer">Customer Name</h3>
+            <p class="modal-subtitle" id="viewModalFarm">Farm Name with Code</p>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="closeViewNoteModal()" aria-label="Close">✕</button>
+      </div>
+
+      <div class="view-note-meta-bar">
+        <span class="tag-badge tag-badge-zone" id="viewModalZone">📍 Zone</span>
+        <span class="view-note-date" id="viewModalDate">Date</span>
+        <span class="note-id-pill" id="viewModalId">ID</span>
+      </div>
+
+      <div class="view-note-body">
+        <label class="view-body-label">Full Note Content</label>
+        <div id="viewModalContent" class="view-note-content-box"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeViewNoteModal()">Close</button>
+        <button type="button" class="btn btn-danger btn-sm" id="viewModalDeleteBtn" onclick="handleViewModalDelete()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+          <span>Delete Note</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -465,7 +462,7 @@
       </div>
 
       <div class="delete-body">
-        <p>Are you sure you want to permanently delete this note from the Excel workbook?</p>
+        <p>Are you sure you want to permanently delete this note?</p>
         <div id="deleteNotePreview" class="delete-preview-box"></div>
       </div>
 
@@ -481,4 +478,3 @@
   <script src="script.js"></script>
 </body>
 </html>
-

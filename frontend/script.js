@@ -1,7 +1,8 @@
 /**
  * Personal Notes Management Web App - Frontend Script
- * Interacts with Streamlit backend using Streamlit custom component postMessage protocol.
- * Handles client-side state, modal interactions, search/filtering, and responsive UI.
+ * Handles Username-based Authentication, Zone isolation (Chilaw, Puttalam, Middle Zone),
+ * dynamic Customer Name & Farm Name with Code dropdowns from Running List.xlsx,
+ * and bidirectional Streamlit component communication.
  */
 
 // Application State
@@ -9,14 +10,22 @@ let appState = {
   authenticated: false,
   user: null,
   notes: [],
+  runningList: {
+    zone: "",
+    total_items: 0,
+    customers: [],
+    farms: [],
+    items: [],
+  },
+  allZones: [],
   backendStatus: {
     drive: { is_connected: false, status_message: "Checking..." },
     firebase: { is_live: false, status_message: "Checking..." },
   },
   filter: {
     search: "",
-    category: "",
-    priority: "",
+    customer: "",
+    farm: "",
   },
   activeDeleteNoteId: null,
 };
@@ -49,21 +58,20 @@ function updateFrameHeight() {
       {
         isStreamlitMessage: true,
         type: "streamlit:setFrameHeight",
-        height: Math.max(scrollH, 900),
+        height: Math.max(scrollH, 920),
       },
       "*"
     );
-  }, 50);
+  }, 60);
 }
 
-// Listen for messages from Streamlit parent frame
+// Receive messages from Streamlit parent window
 window.addEventListener("message", (event) => {
   if (!event.data) return;
 
   if (event.data.type === "streamlit:render") {
     const args = event.data.args || {};
     const state = args.state || {};
-
     applyServerState(state);
   }
 });
@@ -75,11 +83,17 @@ function applyServerState(serverState) {
   appState.user = serverState.user || null;
   appState.notes = Array.isArray(serverState.notes) ? serverState.notes : [];
 
+  if (serverState.running_list) {
+    appState.runningList = serverState.running_list;
+  }
+  if (serverState.all_zones) {
+    appState.allZones = serverState.all_zones;
+  }
   if (serverState.backend_status) {
     appState.backendStatus = serverState.backend_status;
   }
 
-  // Handle errors
+  // Handle alerts & toasts
   if (serverState.error) {
     showAuthError(serverState.error);
     showToast(serverState.error, "error");
@@ -87,12 +101,11 @@ function applyServerState(serverState) {
     hideAuthError();
   }
 
-  // Handle toasts
   if (serverState.toast) {
     showToast(serverState.toast, "success");
   }
 
-  // Update View
+  // Render proper view
   if (appState.authenticated && appState.user) {
     showDashboardView();
   } else {
@@ -102,7 +115,6 @@ function applyServerState(serverState) {
   updateFrameHeight();
 }
 
-// Notify Streamlit that the component is loaded
 window.addEventListener("load", () => {
   window.parent.postMessage(
     {
@@ -126,7 +138,6 @@ function showAuthView() {
   document.getElementById("authView").style.display = "flex";
   document.getElementById("dashboardView").style.display = "none";
 
-  // Update auth status banner
   const statusPill = document.getElementById("authStatusPill");
   const statusText = document.getElementById("authStatusText");
   const dot = statusPill.querySelector(".status-dot");
@@ -150,77 +161,45 @@ function showDashboardView() {
   document.getElementById("authView").style.display = "none";
   document.getElementById("dashboardView").style.display = "block";
 
-  // Populate user info
-  const user = appState.user || { name: "User", email: "", uid: "" };
-  document.getElementById("welcomeUserName").textContent = user.name || "User";
-  document.getElementById("navUserName").textContent = user.name || "User";
-  document.getElementById("navUserUid").textContent = `UID: ${(user.uid || "").slice(0, 16)}...`;
-  document.getElementById("userAvatarText").textContent = (user.name || "U").charAt(0).toUpperCase();
+  const user = appState.user || { name: "Officer", username: "user", zone: "Chilaw", uid: "" };
+  const userZone = user.zone || "Chilaw";
 
-  // Populate system status indicators
+  // Navigation user profile
+  document.getElementById("welcomeUserName").textContent = user.name || user.username || "Officer";
+  document.getElementById("welcomeUserZonePill").textContent = `📍 ${userZone} Zone`;
+  document.getElementById("navUserName").textContent = user.name || user.username || "Officer";
+  document.getElementById("navUserZoneSnippet").textContent = `${userZone} • ${(user.uid || "").slice(0, 12)}...`;
+  document.getElementById("userAvatarText").textContent = (user.name || "O").charAt(0).toUpperCase();
+  document.getElementById("userZoneBadgeText").textContent = `${userZone} Zone`;
+
+  // System status
   const drive = appState.backendStatus.drive || {};
-  const firebase = appState.backendStatus.firebase || {};
-
   const driveLabel = document.getElementById("driveStatusLabel");
   const drivePill = document.getElementById("driveStatusPill");
   if (drive.is_connected) {
     driveLabel.textContent = "Drive: Connected";
     drivePill.querySelector(".status-dot").className = "status-dot";
   } else {
-    driveLabel.textContent = "Drive: Local Mode";
+    driveLabel.textContent = "Drive: Local Excel";
     drivePill.querySelector(".status-dot").className = "status-dot local-mode";
   }
 
-  const authLabel = document.getElementById("authStatusLabel");
-  const authPill = document.getElementById("authStatusPillDash");
-  if (firebase.is_live) {
-    authLabel.textContent = "Firebase: Live";
-    authPill.querySelector(".status-dot").className = "status-dot";
-  } else {
-    authLabel.textContent = "Firebase: Local Auth";
-    authPill.querySelector(".status-dot").className = "status-dot local-mode";
-  }
+  // Populate Customer and Farm dropdowns from Running List data for this user's zone
+  populateZoneDropdowns();
 
+  // Render Notes
   renderNotes();
-}
-
-function switchAuthTab(tab) {
-  const tabLogin = document.getElementById("tabLogin");
-  const tabRegister = document.getElementById("tabRegister");
-  const loginForm = document.getElementById("loginForm");
-  const registerForm = document.getElementById("registerForm");
-
-  hideAuthError();
-
-  if (tab === "login") {
-    tabLogin.classList.add("active");
-    tabRegister.classList.remove("active");
-    loginForm.style.display = "block";
-    registerForm.style.display = "none";
-  } else {
-    tabLogin.classList.remove("active");
-    tabRegister.classList.add("active");
-    loginForm.style.display = "none";
-    registerForm.style.display = "block";
-  }
-  updateFrameHeight();
-}
-
-function fillDemoCredentials() {
-  document.getElementById("loginEmail").value = "demo@example.com";
-  document.getElementById("loginPassword").value = "password123";
-  showToast("Pre-filled demo credentials", "info");
 }
 
 function handleLoginSubmit(event) {
   event.preventDefault();
   hideAuthError();
 
-  const email = document.getElementById("loginEmail").value.trim();
+  const username = document.getElementById("loginUsername").value.trim();
   const password = document.getElementById("loginPassword").value;
 
-  if (!email || !password) {
-    showAuthError("Please enter both email and password.");
+  if (!username || !password) {
+    showAuthError("Please enter both username and password.");
     return;
   }
 
@@ -229,46 +208,13 @@ function handleLoginSubmit(event) {
   submitBtn.innerHTML = "<span>Signing in...</span>";
 
   sendToStreamlit("login", {
-    email: email,
+    username: username,
     password: password,
   });
 
   setTimeout(() => {
     submitBtn.disabled = false;
     submitBtn.innerHTML = `<span>Sign In to Dashboard</span>
-      <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="5" y1="12" x2="19" y2="12" />
-        <polyline points="12 5 19 12 12 19" />
-      </svg>`;
-  }, 2000);
-}
-
-function handleRegisterSubmit(event) {
-  event.preventDefault();
-  hideAuthError();
-
-  const name = document.getElementById("regName").value.trim();
-  const email = document.getElementById("regEmail").value.trim();
-  const password = document.getElementById("regPassword").value;
-
-  if (!name || !email || !password) {
-    showAuthError("Please fill in all registration fields.");
-    return;
-  }
-
-  const submitBtn = document.getElementById("registerSubmitBtn");
-  submitBtn.disabled = true;
-  submitBtn.innerHTML = "<span>Creating account...</span>";
-
-  sendToStreamlit("signup", {
-    displayName: name,
-    email: email,
-    password: password,
-  });
-
-  setTimeout(() => {
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = `<span>Create My Account</span>
       <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="5" y1="12" x2="19" y2="12" />
         <polyline points="12 5 19 12 12 19" />
@@ -293,6 +239,105 @@ function hideAuthError() {
 }
 
 // ===================================================================
+// RUNNING LIST DROPDOWNS & DYNAMIC LINKING
+// ===================================================================
+
+function populateZoneDropdowns() {
+  const rl = appState.runningList || {};
+  const customers = rl.customers || [];
+  const farms = rl.farms || [];
+
+  // Update stat cards
+  document.getElementById("statZoneCustomers").textContent = customers.length;
+  document.getElementById("statZoneFarms").textContent = farms.length;
+
+  // 1. Dashboard Controls Selectors
+  populateSelectOptions("dashboardCustomerSelect", customers, "-- Choose Customer --");
+  populateSelectOptions("dashboardFarmSelect", farms, "-- Choose Farm with Code --");
+
+  // 2. Modal Selectors
+  populateSelectOptions("modalCustomerSelect", customers, "-- Choose Customer --");
+  populateSelectOptions("modalFarmSelect", farms, "-- Choose Farm with Code --");
+
+  // 3. Filter Toolbar Selectors
+  populateSelectOptions("filterCustomer", customers, "All Customers in My Zone");
+  populateSelectOptions("filterFarm", farms, "All Farms with Code");
+}
+
+function populateSelectOptions(selectId, optionsList, defaultLabel) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  const currentVal = select.value;
+  select.innerHTML = `<option value="">${defaultLabel}</option>`;
+
+  optionsList.forEach((opt) => {
+    const el = document.createElement("option");
+    el.value = opt;
+    el.textContent = opt;
+    select.appendChild(el);
+  });
+
+  if (currentVal && optionsList.includes(currentVal)) {
+    select.value = currentVal;
+  }
+}
+
+// Dynamic linking on Dashboard Controls
+function handleDashboardCustomerChange() {
+  const cust = document.getElementById("dashboardCustomerSelect").value;
+  if (!cust) return;
+
+  const rl = appState.runningList || {};
+  const matchingItems = (rl.items || []).filter((it) => it.customer === cust);
+
+  if (matchingItems.length > 0) {
+    const farmSelect = document.getElementById("dashboardFarmSelect");
+    farmSelect.value = matchingItems[0].farm;
+  }
+}
+
+function handleDashboardFarmChange() {
+  const farm = document.getElementById("dashboardFarmSelect").value;
+  if (!farm) return;
+
+  const rl = appState.runningList || {};
+  const item = (rl.items || []).find((it) => it.farm === farm);
+
+  if (item && item.customer) {
+    const custSelect = document.getElementById("dashboardCustomerSelect");
+    custSelect.value = item.customer;
+  }
+}
+
+// Dynamic linking inside the Modal
+function handleModalCustomerChange() {
+  const cust = document.getElementById("modalCustomerSelect").value;
+  if (!cust) return;
+
+  const rl = appState.runningList || {};
+  const matchingItems = (rl.items || []).filter((it) => it.customer === cust);
+
+  if (matchingItems.length > 0) {
+    const farmSelect = document.getElementById("modalFarmSelect");
+    farmSelect.value = matchingItems[0].farm;
+  }
+}
+
+function handleModalFarmChange() {
+  const farm = document.getElementById("modalFarmSelect").value;
+  if (!farm) return;
+
+  const rl = appState.runningList || {};
+  const item = (rl.items || []).find((it) => it.farm === farm);
+
+  if (item && item.customer) {
+    const custSelect = document.getElementById("modalCustomerSelect");
+    custSelect.value = item.customer;
+  }
+}
+
+// ===================================================================
 // NOTES RENDERING & FILTERING
 // ===================================================================
 
@@ -305,32 +350,35 @@ function renderNotes() {
 
   const notes = appState.notes || [];
 
-  // Filter notes based on search and dropdown filters
   const searchTerm = (appState.filter.search || "").toLowerCase().trim();
-  const filterCat = appState.filter.category;
-  const filterPri = appState.filter.priority;
+  const filterCust = appState.filter.customer;
+  const filterFarm = appState.filter.farm;
 
   const filtered = notes.filter((n) => {
-    const contentMatch = (n.content || "").toLowerCase().includes(searchTerm);
-    const catMatch = (n.selection1 || "").toLowerCase().includes(searchTerm);
-    const priMatch = (n.selection2 || "").toLowerCase().includes(searchTerm);
-    const matchesSearch = !searchTerm || contentMatch || catMatch || priMatch;
+    const cust = (n.customer_name || n.selection1 || "").toLowerCase();
+    const farm = (n.farm_name || n.selection2 || "").toLowerCase();
+    const content = (n.content || "").toLowerCase();
 
-    const matchesCategory = !filterCat || n.selection1 === filterCat;
-    const matchesPriority = !filterPri || n.selection2 === filterPri;
+    const matchesSearch =
+      !searchTerm ||
+      content.includes(searchTerm) ||
+      cust.includes(searchTerm) ||
+      farm.includes(searchTerm);
 
-    return matchesSearch && matchesCategory && matchesPriority;
+    const matchesCustomer = !filterCust || (n.customer_name || n.selection1) === filterCust;
+    const matchesFarm = !filterFarm || (n.farm_name || n.selection2) === filterFarm;
+
+    return matchesSearch && matchesCustomer && matchesFarm;
   });
 
-  // Update Stats
-  updateStats(notes);
+  document.getElementById("statTotalNotes").textContent = notes.length;
 
   if (filtered.length === 0) {
     emptyState.style.display = "block";
     if (notes.length > 0) {
-      emptyMsg.textContent = "No notes matched your search or filter criteria.";
+      emptyMsg.textContent = "No notes matched your search or customer/farm filter criteria.";
     } else {
-      emptyMsg.textContent = "You haven't created any notes yet. Click below to add your first note!";
+      emptyMsg.textContent = `You haven't recorded any notes for ${appState.user?.zone || "your"} zone yet. Click below to add your first note!`;
     }
   } else {
     emptyState.style.display = "none";
@@ -344,44 +392,42 @@ function renderNotes() {
 
 function createNoteCard(note) {
   const card = document.createElement("div");
-  card.className = "note-card";
+  card.className = "note-card clickable-card";
   card.id = `card-${note.note_id}`;
+  card.setAttribute("onclick", `openViewNoteModal('${note.note_id}')`);
+  card.title = "Click to view full note details";
 
-  const categoryClass = `tag-category-${(note.selection1 || "general").toLowerCase()}`;
-  const priorityClass = `tag-priority-${(note.selection2 || "medium").toLowerCase()}`;
-
+  const customerName = note.customer_name || note.selection1 || "Unknown Customer";
+  const farmName = note.farm_name || note.selection2 || "No Farm Assigned";
+  const noteZone = note.zone || appState.user?.zone || "";
   const displayDate = note.updated_date || note.created_date || "Just now";
-
-  // Sanitize text for safe HTML rendering
-  const safeContent = escapeHtml(note.content || "");
+  const rawContent = note.content || "";
+  const safeContent = escapeHtml(rawContent);
+  const isLong = rawContent.length > 100 || rawContent.includes("\n");
 
   card.innerHTML = `
     <div class="card-header">
       <div class="card-badges">
-        <span class="tag-badge ${categoryClass}">
-          ${getCategoryIcon(note.selection1)} ${escapeHtml(note.selection1 || "General")}
+        <span class="tag-badge tag-badge-customer" title="Customer: ${escapeHtml(customerName)}">
+          👤 ${escapeHtml(customerName)}
         </span>
-        <span class="tag-badge ${priorityClass}">
-          ${escapeHtml(note.selection2 || "Medium")}
+        <span class="tag-badge tag-badge-farm" title="Farm with Code: ${escapeHtml(farmName)}">
+          🌾 ${escapeHtml(farmName)}
         </span>
+        ${noteZone ? `<span class="tag-badge tag-badge-zone">📍 ${escapeHtml(noteZone)}</span>` : ""}
       </div>
-      <span class="card-timestamp" title="Last Updated: ${displayDate}">${formatDateSnippet(displayDate)}</span>
+      <span class="card-timestamp" title="Recorded: ${displayDate}">${formatDateSnippet(displayDate)}</span>
     </div>
 
     <div class="card-body">
-      <p class="note-content-text">${safeContent}</p>
+      <p class="note-content-text note-content-clamp">${safeContent}</p>
+      ${isLong ? `<div class="view-more-hint">Tap card to view full details &rarr;</div>` : ""}
     </div>
 
     <div class="card-footer">
       <span class="note-id-pill" title="ID: ${note.note_id}">${note.note_id.slice(0, 12)}</span>
       <div class="card-actions">
-        <button class="action-icon-btn" onclick="openEditNoteModal('${note.note_id}')" title="Edit note">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-        </button>
-        <button class="action-icon-btn delete-btn" onclick="openDeleteModal('${note.note_id}')" title="Delete note">
+        <button class="action-icon-btn delete-btn" onclick="event.stopPropagation(); openDeleteModal('${note.note_id}')" title="Delete note">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="3 6 5 6 21 6" />
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -394,24 +440,15 @@ function createNoteCard(note) {
   return card;
 }
 
-function updateStats(notes) {
-  document.getElementById("statTotalNotes").textContent = notes.length;
-  document.getElementById("statWorkNotes").textContent = notes.filter((n) => n.selection1 === "Work").length;
-  document.getElementById("statPersonalNotes").textContent = notes.filter((n) => n.selection1 === "Personal").length;
-  document.getElementById("statHighPriority").textContent = notes.filter(
-    (n) => n.selection2 === "High" || n.selection2 === "Critical"
-  ).length;
-}
-
 function handleSearchFilterChange() {
   const searchInput = document.getElementById("searchNotesInput");
   const clearBtn = document.getElementById("clearSearchBtn");
-  const filterCat = document.getElementById("filterCategory").value;
-  const filterPri = document.getElementById("filterPriority").value;
+  const filterCust = document.getElementById("filterCustomer").value;
+  const filterFarm = document.getElementById("filterFarm").value;
 
   appState.filter.search = searchInput.value;
-  appState.filter.category = filterCat;
-  appState.filter.priority = filterPri;
+  appState.filter.customer = filterCust;
+  appState.filter.farm = filterFarm;
 
   clearBtn.style.display = searchInput.value ? "block" : "none";
   renderNotes();
@@ -430,36 +467,58 @@ function triggerRefresh() {
 }
 
 // ===================================================================
-// ADD & EDIT NOTE MODALS
+// NOTE DETAILS MODAL (FULL VIEW)
 // ===================================================================
 
-function openAddNoteModal() {
-  // Use currently selected dropdown values from dashboard controls
-  const dashSel1 = document.getElementById("dashboardSelect1").value;
-  const dashSel2 = document.getElementById("dashboardSelect2").value;
+let currentViewNoteId = null;
 
-  document.getElementById("modalTitle").textContent = "Create New Note";
-  document.getElementById("modalSaveBtnText").textContent = "Save Note";
-  document.getElementById("modalNoteId").value = "";
-  document.getElementById("modalSelect1").value = dashSel1 || "Work";
-  document.getElementById("modalSelect2").value = dashSel2 || "Medium";
-  document.getElementById("modalNoteContent").value = "";
-  updateCharCount();
-
-  document.getElementById("noteModal").style.display = "flex";
-  setTimeout(() => document.getElementById("modalNoteContent").focus(), 100);
-}
-
-function openEditNoteModal(noteId) {
+function openViewNoteModal(noteId) {
   const note = (appState.notes || []).find((n) => n.note_id === noteId);
   if (!note) return;
 
-  document.getElementById("modalTitle").textContent = "Edit Note";
-  document.getElementById("modalSaveBtnText").textContent = "Update Note";
-  document.getElementById("modalNoteId").value = note.note_id;
-  document.getElementById("modalSelect1").value = note.selection1 || "Work";
-  document.getElementById("modalSelect2").value = note.selection2 || "Medium";
-  document.getElementById("modalNoteContent").value = note.content || "";
+  currentViewNoteId = note.note_id;
+  const cust = note.customer_name || note.selection1 || "Unknown Customer";
+  const farm = note.farm_name || note.selection2 || "No Farm Assigned";
+  const zone = note.zone || appState.user?.zone || "Zone";
+  const date = note.created_date || note.updated_date || "Date not recorded";
+
+  document.getElementById("viewModalCustomer").textContent = cust;
+  document.getElementById("viewModalFarm").textContent = farm;
+  document.getElementById("viewModalZone").textContent = `📍 ${zone}`;
+  document.getElementById("viewModalDate").textContent = `Recorded: ${date}`;
+  document.getElementById("viewModalId").textContent = `ID: ${note.note_id}`;
+  document.getElementById("viewModalContent").textContent = note.content || "";
+
+  document.getElementById("viewNoteModal").style.display = "flex";
+}
+
+function closeViewNoteModal() {
+  currentViewNoteId = null;
+  document.getElementById("viewNoteModal").style.display = "none";
+}
+
+function handleViewModalDelete() {
+  const idToDelete = currentViewNoteId;
+  closeViewNoteModal();
+  if (idToDelete) {
+    openDeleteModal(idToDelete);
+  }
+}
+
+// ===================================================================
+// ADD NOTE MODAL
+// ===================================================================
+
+function openAddNoteModal() {
+  const dashCust = document.getElementById("dashboardCustomerSelect").value;
+  const dashFarm = document.getElementById("dashboardFarmSelect").value;
+
+  document.getElementById("modalTitle").textContent = "Record Field Note";
+  document.getElementById("modalSaveBtnText").textContent = "Save Note";
+  document.getElementById("modalNoteId").value = "";
+  document.getElementById("modalCustomerSelect").value = dashCust || "";
+  document.getElementById("modalFarmSelect").value = dashFarm || "";
+  document.getElementById("modalNoteContent").value = "";
   updateCharCount();
 
   document.getElementById("noteModal").style.display = "flex";
@@ -473,11 +532,18 @@ function closeNoteModal() {
 function handleSaveNote(event) {
   event.preventDefault();
 
-  const noteId = document.getElementById("modalNoteId").value;
-  const sel1 = document.getElementById("modalSelect1").value;
-  const sel2 = document.getElementById("modalSelect2").value;
+  const cust = document.getElementById("modalCustomerSelect").value;
+  const farm = document.getElementById("modalFarmSelect").value;
   const content = document.getElementById("modalNoteContent").value.trim();
 
+  if (!cust) {
+    showToast("Please choose a Customer Name.", "error");
+    return;
+  }
+  if (!farm) {
+    showToast("Please choose a Farm Name with Code.", "error");
+    return;
+  }
   if (!content) {
     showToast("Please enter some note content.", "error");
     return;
@@ -486,27 +552,16 @@ function handleSaveNote(event) {
   const saveBtn = document.getElementById("modalSaveBtn");
   saveBtn.disabled = true;
 
-  if (noteId) {
-    // Edit existing note
-    sendToStreamlit("edit_note", {
-      note_id: noteId,
-      selection1: sel1,
-      selection2: sel2,
-      content: content,
-    });
-  } else {
-    // Add new note
-    sendToStreamlit("add_note", {
-      selection1: sel1,
-      selection2: sel2,
-      content: content,
-    });
-  }
+  sendToStreamlit("add_note", {
+    customer_name: cust,
+    farm_name: farm,
+    content: content,
+  });
 
   closeNoteModal();
   setTimeout(() => {
     saveBtn.disabled = false;
-  }, 1000);
+  }, 500);
 }
 
 function updateCharCount() {
@@ -524,7 +579,9 @@ function openDeleteModal(noteId) {
 
   appState.activeDeleteNoteId = noteId;
   const preview = document.getElementById("deleteNotePreview");
-  preview.textContent = (note.content || "").slice(0, 140) + ((note.content || "").length > 140 ? "..." : "");
+  const cust = note.customer_name || note.selection1 || "";
+  const farm = note.farm_name || note.selection2 || "";
+  preview.textContent = `[${cust} • ${farm}]\n${(note.content || "").slice(0, 140)}...`;
 
   document.getElementById("deleteModal").style.display = "flex";
 }
@@ -544,23 +601,25 @@ function confirmDeleteNote() {
   closeDeleteModal();
 }
 
-// Close modals when clicking backdrop or pressing Escape
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     closeNoteModal();
     closeDeleteModal();
+    closeViewNoteModal();
   }
 });
 
 document.addEventListener("click", (e) => {
   const noteModal = document.getElementById("noteModal");
   const deleteModal = document.getElementById("deleteModal");
+  const viewModal = document.getElementById("viewNoteModal");
   if (e.target === noteModal) closeNoteModal();
   if (e.target === deleteModal) closeDeleteModal();
+  if (e.target === viewModal) closeViewNoteModal();
 });
 
 // ===================================================================
-// TOAST NOTIFICATIONS & UTILITIES
+// UTILITIES & TOASTS
 // ===================================================================
 
 function showToast(message, type = "info") {
@@ -600,25 +659,10 @@ function formatDateSnippet(dateStr) {
   if (!dateStr) return "";
   try {
     const parts = dateStr.split(" ");
-    if (parts.length === 2) {
-      return `${parts[0]}`;
-    }
-    return dateStr;
+    return parts[0] || dateStr;
   } catch (e) {
     return dateStr;
   }
-}
-
-function getCategoryIcon(cat) {
-  const c = (cat || "").toLowerCase();
-  if (c === "work") return "💼";
-  if (c === "personal") return "🏡";
-  if (c === "ideas") return "💡";
-  if (c === "meetings") return "🤝";
-  if (c === "projects") return "🚀";
-  if (c === "urgent") return "🔥";
-  if (c === "study") return "📚";
-  return "📝";
 }
 
 function escapeHtml(str) {
@@ -626,4 +670,3 @@ function escapeHtml(str) {
   div.appendChild(document.createTextNode(str));
   return div.innerHTML;
 }
-

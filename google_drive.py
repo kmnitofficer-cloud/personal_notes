@@ -32,13 +32,26 @@ class GoogleDriveManager:
         folder_id: Optional[str] = None,
         file_name: str = DEFAULT_FILE_NAME,
     ):
+        # Check Streamlit secrets first for folder_id
+        secret_folder = None
+        try:
+            import streamlit as st
+            if hasattr(st, "secrets") and "GOOGLE_DRIVE_FOLDER_ID" in st.secrets:
+                secret_folder = str(st.secrets["GOOGLE_DRIVE_FOLDER_ID"]).strip()
+        except Exception:
+            pass
+
         self.file_name = file_name
-        self.folder_id = folder_id or os.getenv("GOOGLE_DRIVE_FOLDER_ID")
-        self.service_account_path = (
-            service_account_path
-            or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-            or os.path.join(os.path.dirname(__file__), "config", "service_account.json")
-        )
+        self.folder_id = folder_id or secret_folder or os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        default_path = os.path.join(base_dir, "config", "service_account.json")
+        env_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        if env_path and not os.path.isabs(env_path):
+            candidate = os.path.join(base_dir, env_path)
+            if os.path.exists(candidate):
+                env_path = candidate
+
+        self.service_account_path = service_account_path or env_path or default_path
         self.service = None
         self.file_id = None
         self.is_connected = False
@@ -49,19 +62,22 @@ class GoogleDriveManager:
     def _initialize_service(self):
         """Attempts to initialize the Google Drive API client."""
         try:
-            # Check Streamlit secrets if running inside Streamlit
+            # Check Streamlit secrets first
             credentials = None
             try:
                 import streamlit as st
-                if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
-                    from google.oauth2 import service_account
-                    info = dict(st.secrets["gcp_service_account"])
-                    credentials = service_account.Credentials.from_service_account_info(
-                        info, scopes=SCOPES
-                    )
-                    logger.info("Loaded Google credentials from st.secrets")
-            except Exception:
-                pass
+                if hasattr(st, "secrets"):
+                    for s_key in ["gcp_service_account", "firebase_service_account", "service_account"]:
+                        if s_key in st.secrets:
+                            from google.oauth2 import service_account
+                            info = dict(st.secrets[s_key])
+                            credentials = service_account.Credentials.from_service_account_info(
+                                info, scopes=SCOPES
+                            )
+                            logger.info(f"Loaded Google credentials from st.secrets['{s_key}']")
+                            break
+            except Exception as sec_err:
+                logger.warning(f"Error loading credentials from st.secrets: {sec_err}")
 
             if credentials is None:
                 if os.path.exists(self.service_account_path):
@@ -109,6 +125,26 @@ class GoogleDriveManager:
         """Searches for existing personal_notes.xlsx in Drive."""
         if not self.is_connected or not self.service:
             return None
+
+        # Auto-detect shared folder if folder_id is not explicitly provided
+        if not self.folder_id:
+            try:
+                f_resp = (
+                    self.service.files()
+                    .list(
+                        q="mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+                        fields="files(id, name)",
+                    )
+                    .execute()
+                )
+                folders = f_resp.get("files", [])
+                if folders:
+                    self.folder_id = folders[0]["id"]
+                    logger.info(
+                        f"Auto-detected Google Drive folder: '{folders[0]['name']}' (ID: {self.folder_id})"
+                    )
+            except Exception as e:
+                logger.warning(f"Could not auto-detect shared folder: {e}")
 
         try:
             query = f"name = '{self.file_name}' and trashed = false"
@@ -197,8 +233,12 @@ class GoogleDriveManager:
                 resumable=True,
             )
 
+            # Check if file exists on Drive if file_id is not yet cached
+            if not self.file_id:
+                self._find_or_prepare_drive_file()
+
             if self.file_id:
-                # Update existing file
+                # Update existing file (works without service account storage quota issues)
                 updated_file = (
                     self.service.files()
                     .update(
@@ -211,7 +251,7 @@ class GoogleDriveManager:
                 logger.info(f"Updated file on Drive: ID={self.file_id}")
                 return self.file_id
             else:
-                # Create new file
+                # Attempt to create new file
                 file_metadata: Dict[str, Any] = {
                     "name": self.file_name,
                     "mimeType": EXCEL_MIMETYPE,
@@ -219,18 +259,31 @@ class GoogleDriveManager:
                 if self.folder_id:
                     file_metadata["parents"] = [self.folder_id]
 
-                created_file = (
-                    self.service.files()
-                    .create(
-                        body=file_metadata,
-                        media_body=media,
-                        fields="id, name, modifiedTime",
+                try:
+                    created_file = (
+                        self.service.files()
+                        .create(
+                            body=file_metadata,
+                            media_body=media,
+                            fields="id, name, modifiedTime",
+                        )
+                        .execute()
                     )
-                    .execute()
-                )
-                self.file_id = created_file.get("id")
-                logger.info(f"Created new file on Drive: ID={self.file_id}")
-                return self.file_id
+                    self.file_id = created_file.get("id")
+                    logger.info(f"Created new file on Drive: ID={self.file_id}")
+                    return self.file_id
+                except Exception as create_err:
+                    err_str = str(create_err)
+                    if "storageQuotaExceeded" in err_str or "storage quota" in err_str:
+                        self.status_message = (
+                            "Google Drive Notice: Service accounts have 0MB personal quota. "
+                            "Please upload the file 'personal_notes.xlsx' once into your 'Farm Notes Database' folder on Drive. "
+                            "The app will then edit and sync it automatically."
+                        )
+                        logger.warning(self.status_message)
+                    else:
+                        logger.error(f"Failed to create file on Drive: {create_err}")
+                    return None
 
         except Exception as e:
             logger.error(f"Failed to upload {self.file_name} to Drive: {e}")

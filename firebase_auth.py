@@ -1,7 +1,7 @@
 """
 Firebase Authentication module for Personal Notes Management Web App.
-Handles Firebase token verification, Firebase REST authentication (sign in/sign up),
-and user session management with fallback test mode when credentials are not yet configured.
+Handles username/password login, Firebase token verification, and user profiles
+with Zone assignments for Chilaw, Puttalam, and Middle Zone.
 """
 
 import os
@@ -10,15 +10,57 @@ import hashlib
 import logging
 from typing import Optional, Dict, Any, Tuple
 import requests
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+# Predefined Officer Users and Zones
+OFFICERS = {
+    "vishmika": {
+        "uid": "fb_uid_vishmika_chilaw",
+        "username": "vishmika",
+        "email": "vishmika@farmnotes.internal",
+        "display_name": "Mr. Vishmika",
+        "zone": "Chilaw",
+    },
+    "janaka": {
+        "uid": "fb_uid_janaka_puttalam",
+        "username": "janaka",
+        "email": "janaka@farmnotes.internal",
+        "display_name": "Mr. Janaka",
+        "zone": "Puttalam",
+    },
+    "shashika": {
+        "uid": "fb_uid_shashika_puttalam",
+        "username": "shashika",
+        "email": "shashika@farmnotes.internal",
+        "display_name": "Mr. Shashika",
+        "zone": "Puttalam",
+    },
+    "ashen": {
+        "uid": "fb_uid_ashen_middlezone",
+        "username": "ashen",
+        "email": "ashen@farmnotes.internal",
+        "display_name": "Mr. Ashen",
+        "zone": "Middle Zone",
+    },
+    "janushan": {
+        "uid": "fb_uid_janushan_middlezone",
+        "username": "janushan",
+        "email": "janushan@farmnotes.internal",
+        "display_name": "Mr. Janushan",
+        "zone": "Middle Zone",
+    },
+}
 
 
 class FirebaseAuthManager:
     """
-    Manages Firebase Authentication operations and token verification.
-    Ensures that every user request is cryptographically validated and mapped to
-    a verified Firebase UID.
+    Manages Firebase Authentication operations, username-based login,
+    and user session management with Zone assignments.
     """
 
     def __init__(self, service_account_path: Optional[str] = None):
@@ -28,13 +70,22 @@ class FirebaseAuthManager:
             or os.getenv("FIREBASE_SERVICE_ACCOUNT")
             or os.path.join(base_dir, "config", "service_account.json")
         )
-        self.web_api_key = os.getenv("FIREBASE_WEB_API_KEY", "")
+        # Check Streamlit secrets first for Web API Key
+        secret_api_key = None
+        try:
+            import streamlit as st
+            if hasattr(st, "secrets") and "FIREBASE_WEB_API_KEY" in st.secrets:
+                secret_api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
+        except Exception:
+            pass
+
+        self.web_api_key = secret_api_key or os.getenv("FIREBASE_WEB_API_KEY", "")
         self.is_live = False
         self.status_message = "Initializing Firebase..."
 
         self._init_firebase_admin()
 
-        # Local fallback store for offline / preview testing if credentials are absent
+        # Local user store
         self._local_users_file = os.path.join(base_dir, "data", "local_users.json")
         self._init_local_users_store()
 
@@ -44,7 +95,6 @@ class FirebaseAuthManager:
             import firebase_admin
             from firebase_admin import credentials, auth
 
-            # Check if app is already initialized
             try:
                 firebase_admin.get_app()
                 self.is_live = True
@@ -55,7 +105,6 @@ class FirebaseAuthManager:
                 pass
 
             cred = None
-            # Check Streamlit secrets
             try:
                 import streamlit as st
                 if hasattr(st, "secrets"):
@@ -70,7 +119,6 @@ class FirebaseAuthManager:
             except Exception:
                 pass
 
-            # Check service_account.json file
             if cred is None and os.path.exists(self.service_account_path):
                 try:
                     with open(self.service_account_path, "r", encoding="utf-8") as f:
@@ -88,6 +136,10 @@ class FirebaseAuthManager:
                 self.is_live = True
                 self.status_message = "Firebase Admin SDK connected and ready."
                 logger.info(self.status_message)
+            elif self.web_api_key:
+                self.is_live = True
+                self.status_message = "Firebase Authentication API connected and active."
+                logger.info(self.status_message)
             else:
                 self.is_live = False
                 self.status_message = (
@@ -97,29 +149,57 @@ class FirebaseAuthManager:
 
         except Exception as e:
             self.is_live = False
-            self.status_message = f"Firebase initialization error: {e}. Using local auth mode."
+            self.status_message = f"Firebase initialization: {e}. Using local auth mode."
             logger.warning(self.status_message)
 
     def _init_local_users_store(self):
-        """Initializes local user storage with a default demo user for out-of-the-box testing."""
+        """Initializes local user storage with the specified officer users."""
         os.makedirs(os.path.dirname(self._local_users_file), exist_ok=True)
-        if not os.path.exists(self._local_users_file):
-            # Preload demo user
-            demo_salt = "notes_salt_123"
-            demo_hash = hashlib.sha256((demo_salt + "password123").encode("utf-8")).hexdigest()
-            initial_data = {
-                "users": {
-                    "demo@example.com": {
-                        "uid": "fb_uid_demo_user_101",
-                        "email": "demo@example.com",
-                        "display_name": "Demo User",
-                        "password_hash": demo_hash,
-                        "salt": demo_salt,
-                    }
+        users_data = {}
+        if os.path.exists(self._local_users_file):
+            try:
+                with open(self._local_users_file, "r", encoding="utf-8") as f:
+                    users_data = json.load(f)
+            except Exception:
+                users_data = {}
+
+        if "users" not in users_data:
+            users_data["users"] = {}
+
+        # Ensure all predefined officer accounts exist with default password 'password123'
+        default_salt = "farm_notes_salt_2026"
+        default_hash = hashlib.sha256((default_salt + "password123").encode("utf-8")).hexdigest()
+
+        for uname, info in OFFICERS.items():
+            if uname not in users_data["users"]:
+                users_data["users"][uname] = {
+                    "uid": info["uid"],
+                    "username": info["username"],
+                    "email": info["email"],
+                    "display_name": info["display_name"],
+                    "zone": info["zone"],
+                    "password_hash": default_hash,
+                    "salt": default_salt,
                 }
+            else:
+                # Update zone and display_name if needed
+                users_data["users"][uname]["zone"] = info["zone"]
+                users_data["users"][uname]["display_name"] = info["display_name"]
+
+        # Also support demo user for backwards compatibility
+        if "demo@example.com" not in users_data["users"]:
+            users_data["users"]["demo@example.com"] = {
+                "uid": "fb_uid_demo_user_101",
+                "username": "demo",
+                "email": "demo@example.com",
+                "display_name": "Demo User",
+                "zone": "All Zones",
+                "password_hash": default_hash,
+                "salt": default_salt,
             }
-            with open(self._local_users_file, "w", encoding="utf-8") as f:
-                json.dump(initial_data, f, indent=2)
+
+        with open(self._local_users_file, "w", encoding="utf-8") as f:
+            json.dump(users_data, f, indent=2)
 
     def _read_local_users(self) -> Dict[str, Any]:
         """Reads local users database file."""
@@ -134,10 +214,26 @@ class FirebaseAuthManager:
         with open(self._local_users_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
+    def normalize_username(self, identifier: str) -> str:
+        """Normalizes username or email input."""
+        raw = (identifier or "").strip().lower()
+        # Remove common prefixes like 'mr.'
+        if raw.startswith("mr."):
+            raw = raw[3:].strip()
+        elif raw.startswith("mr "):
+            raw = raw[3:].strip()
+        return raw
+
+    def get_firebase_email(self, username: str) -> str:
+        """Translates a username into an email string required by Firebase Auth."""
+        norm = self.normalize_username(username)
+        if "@" in norm:
+            return norm
+        return f"{norm}@farmnotes.internal"
+
     def verify_id_token(self, id_token: str) -> Optional[Dict[str, Any]]:
         """
-        Cryptographically verifies a Firebase ID token.
-        Returns a dictionary with verified uid, email, and display name.
+        Cryptographically verifies a Firebase ID token and looks up zone metadata.
         """
         if not id_token:
             return None
@@ -149,31 +245,44 @@ class FirebaseAuthManager:
                 decoded_token = auth.verify_id_token(id_token)
                 uid = decoded_token.get("uid")
                 email = decoded_token.get("email", "")
-                name = decoded_token.get("name") or (email.split("@")[0] if email else "User")
+                username = email.split("@")[0]
+                name = decoded_token.get("name") or username.capitalize()
+
+                # Determine zone from known officers or email
+                zone = "Chilaw"
+                for o_uname, o_info in OFFICERS.items():
+                    if o_info["uid"] == uid or o_uname == username:
+                        zone = o_info["zone"]
+                        name = o_info["display_name"]
+                        break
+
                 return {
                     "uid": uid,
+                    "username": username,
                     "email": email,
                     "name": name,
+                    "zone": zone,
                     "token": id_token,
                 }
             except Exception as e:
                 logger.error(f"Live Firebase ID token verification failed: {e}")
                 return None
 
-        # Fallback local session token verification
+        # Fallback local token verification
         try:
-            # Token format: local_token:<email>:<uid_hash>
             if id_token.startswith("local_token:"):
                 parts = id_token.split(":")
                 if len(parts) >= 3:
-                    email = parts[1]
+                    uname = parts[1]
                     users_data = self._read_local_users()
-                    user = users_data.get("users", {}).get(email.lower())
+                    user = users_data.get("users", {}).get(uname.lower())
                     if user:
                         return {
                             "uid": user["uid"],
+                            "username": user.get("username", uname),
                             "email": user["email"],
                             "name": user["display_name"],
+                            "zone": user.get("zone", "Chilaw"),
                             "token": id_token,
                         }
         except Exception as e:
@@ -181,26 +290,27 @@ class FirebaseAuthManager:
 
         return None
 
-    def sign_in_with_password(
-        self, email: str, password: str
+    def sign_in_with_username_or_email(
+        self, username_or_email: str, password: str
     ) -> Tuple[bool, Optional[Dict[str, Any]], str]:
         """
-        Authenticates a user with email and password.
+        Authenticates a user with username (or email) and password.
         Uses Firebase Auth REST API if API key is provided, or local auth fallback.
-        Returns (success: bool, user_data: dict, error_message: str).
         """
-        email = (email or "").strip().lower()
+        raw_input = (username_or_email or "").strip()
+        norm_key = self.normalize_username(raw_input)
         password = password or ""
 
-        if not email or not password:
-            return False, None, "Email and password are required."
+        if not norm_key or not password:
+            return False, None, "Username and password are required."
 
         # If live Firebase Web API key is available, use Google Identity Toolkit
         if self.web_api_key:
             try:
+                firebase_email = self.get_firebase_email(norm_key)
                 url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={self.web_api_key}"
                 payload = {
-                    "email": email,
+                    "email": firebase_email,
                     "password": password,
                     "returnSecureToken": True,
                 }
@@ -210,78 +320,93 @@ class FirebaseAuthManager:
                 if resp.status_code == 200:
                     id_token = data.get("idToken")
                     uid = data.get("localId")
-                    display_name = data.get("displayName") or email.split("@")[0]
 
-                    # Verify through Admin SDK if initialized
-                    if self.is_live:
-                        verified = self.verify_id_token(id_token)
-                        if verified:
-                            return True, verified, ""
+                    # Look up zone
+                    zone = "Chilaw"
+                    display_name = norm_key.capitalize()
+                    for o_uname, o_info in OFFICERS.items():
+                        if o_uname == norm_key:
+                            zone = o_info["zone"]
+                            display_name = o_info["display_name"]
+                            break
 
                     return (
                         True,
                         {
                             "uid": uid,
-                            "email": email,
+                            "username": norm_key,
+                            "email": firebase_email,
                             "name": display_name,
+                            "zone": zone,
                             "token": id_token,
                         },
                         "",
                     )
                 else:
                     error_msg = data.get("error", {}).get("message", "Authentication failed.")
-                    # Human-friendly messages
                     if "INVALID_LOGIN_CREDENTIALS" in error_msg or "INVALID_PASSWORD" in error_msg or "EMAIL_NOT_FOUND" in error_msg:
-                        error_msg = "Invalid email or password."
-                    elif "USER_DISABLED" in error_msg:
-                        error_msg = "This user account has been disabled."
+                        error_msg = "Invalid username or password."
                     return False, None, error_msg
 
             except Exception as e:
                 logger.error(f"Firebase REST sign in error: {e}")
-                # Fall back to local check if network error occurs
 
         # Local authentication fallback
         users_data = self._read_local_users()
-        user = users_data.get("users", {}).get(email)
-        if not user:
-            return False, None, "Invalid email or password. (Demo: demo@example.com / password123)"
+        user_entry = None
+        # Try direct match, or email match, or officer key
+        users_dict = users_data.get("users", {})
+        if norm_key in users_dict:
+            user_entry = users_dict[norm_key]
+        else:
+            for k, u in users_dict.items():
+                if u.get("email", "").lower() == norm_key.lower() or u.get("username", "").lower() == norm_key.lower():
+                    user_entry = u
+                    break
 
-        salt = user.get("salt", "")
+        if not user_entry:
+            return False, None, "Invalid username or password. Check officer names or default password123."
+
+        salt = user_entry.get("salt", "")
         test_hash = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
-        if test_hash != user.get("password_hash"):
-            return False, None, "Invalid email or password."
+        if test_hash != user_entry.get("password_hash"):
+            return False, None, "Invalid username or password."
 
-        local_token = f"local_token:{email}:{hashlib.sha256(user['uid'].encode()).hexdigest()[:12]}"
+        local_token = f"local_token:{norm_key}:{hashlib.sha256(user_entry['uid'].encode()).hexdigest()[:12]}"
         user_info = {
-            "uid": user["uid"],
-            "email": user["email"],
-            "name": user.get("display_name") or email.split("@")[0],
+            "uid": user_entry["uid"],
+            "username": user_entry.get("username", norm_key),
+            "email": user_entry.get("email", f"{norm_key}@farmnotes.internal"),
+            "name": user_entry.get("display_name", norm_key.capitalize()),
+            "zone": user_entry.get("zone", "Chilaw"),
             "token": local_token,
         }
         return True, user_info, ""
 
-    def sign_up_with_password(
-        self, email: str, password: str, display_name: str = ""
+    def sign_up_user(
+        self, username: str, password: str, display_name: str = "", zone: str = "Chilaw"
     ) -> Tuple[bool, Optional[Dict[str, Any]], str]:
         """
-        Registers a new user account.
+        Registers a new officer or user account with an assigned Zone.
         """
-        email = (email or "").strip().lower()
+        username = self.normalize_username(username)
         password = password or ""
-        display_name = (display_name or "").strip() or email.split("@")[0]
+        display_name = (display_name or "").strip() or username.capitalize()
+        zone = (zone or "Chilaw").strip()
 
-        if not email or "@" not in email:
-            return False, None, "Please provide a valid email address."
+        if not username or len(username) < 3:
+            return False, None, "Username must be at least 3 characters long."
         if len(password) < 6:
             return False, None, "Password must be at least 6 characters long."
+
+        firebase_email = self.get_firebase_email(username)
 
         # Live Firebase Registration
         if self.web_api_key:
             try:
                 url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={self.web_api_key}"
                 payload = {
-                    "email": email,
+                    "email": firebase_email,
                     "password": password,
                     "returnSecureToken": True,
                 }
@@ -291,60 +416,48 @@ class FirebaseAuthManager:
                 if resp.status_code == 200:
                     id_token = data.get("idToken")
                     uid = data.get("localId")
-
-                    # Also update display name if possible
-                    try:
-                        update_url = f"https://identitytoolkit.googleapis.com/v1/accounts:update?key={self.web_api_key}"
-                        requests.post(
-                            update_url,
-                            json={"idToken": id_token, "displayName": display_name},
-                            timeout=5,
-                        )
-                    except Exception:
-                        pass
-
                     return (
                         True,
                         {
                             "uid": uid,
-                            "email": email,
+                            "username": username,
+                            "email": firebase_email,
                             "name": display_name,
+                            "zone": zone,
                             "token": id_token,
                         },
                         "",
                     )
-                else:
-                    error_msg = data.get("error", {}).get("message", "Registration failed.")
-                    if "EMAIL_EXISTS" in error_msg:
-                        error_msg = "An account with this email already exists."
-                    return False, None, error_msg
-
             except Exception as e:
                 logger.error(f"Firebase REST sign up error: {e}")
 
         # Local registration fallback
         users_data = self._read_local_users()
-        if email in users_data.get("users", {}):
-            return False, None, "An account with this email already exists."
+        if username in users_data.get("users", {}):
+            return False, None, "An account with this username already exists."
 
         salt = os.urandom(16).hex()
         password_hash = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
-        uid = f"fb_uid_{os.urandom(8).hex()}"
+        uid = f"fb_uid_{username}_{os.urandom(4).hex()}"
 
-        users_data["users"][email] = {
+        users_data["users"][username] = {
             "uid": uid,
-            "email": email,
+            "username": username,
+            "email": firebase_email,
             "display_name": display_name,
+            "zone": zone,
             "password_hash": password_hash,
             "salt": salt,
         }
         self._save_local_users(users_data)
 
-        local_token = f"local_token:{email}:{hashlib.sha256(uid.encode()).hexdigest()[:12]}"
+        local_token = f"local_token:{username}:{hashlib.sha256(uid.encode()).hexdigest()[:12]}"
         user_info = {
             "uid": uid,
-            "email": email,
+            "username": username,
+            "email": firebase_email,
             "name": display_name,
+            "zone": zone,
             "token": local_token,
         }
         return True, user_info, ""

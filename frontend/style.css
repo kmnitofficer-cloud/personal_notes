@@ -375,9 +375,121 @@ textarea {
   box-shadow: var(--shadow-sm);
 }
 
-.demo-login-box {
+/* Quick Officer Select Buttons */
+.officer-quick-select-box {
   margin-top: 18px;
 }
+
+.officer-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.officer-pill-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 8px 14px;
+  background-color: var(--slate-100);
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  font-size: 0.825rem;
+  color: var(--slate-700);
+  transition: all 0.15s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.officer-pill-btn:hover {
+  background-color: #ffffff;
+  border-color: var(--primary-500);
+  box-shadow: var(--shadow-sm);
+  color: var(--primary-700);
+  transform: translateX(3px);
+}
+
+.officer-zone-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.officer-zone-dot.zone-chilaw { background-color: #0284c7; }
+.officer-zone-dot.zone-puttalam { background-color: #16a34a; }
+.officer-zone-dot.zone-middle { background-color: #d97706; }
+
+.badge-zone {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-weight: 700;
+}
+
+.zone-pill-highlight {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.controls-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--slate-100);
+  padding-bottom: 8px;
+}
+
+.section-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--primary-600);
+  letter-spacing: 0.06em;
+}
+
+.controls-helper-text {
+  font-size: 0.75rem;
+  color: var(--slate-400);
+}
+
+.tag-badge-customer {
+  background-color: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  font-weight: 700;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tag-badge-farm {
+  background-color: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.tag-badge-zone {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  font-size: 0.68rem;
+}
+
 
 .demo-divider {
   display: flex;
@@ -1188,6 +1300,105 @@ textarea {
   to { transform: rotate(360deg); }
 }
 
+/* ===================================================================
+   CLICKABLE NOTE CARD & CLAMPING
+   =================================================================== */
+
+.clickable-card {
+  cursor: pointer;
+  user-select: none;
+}
+
+.clickable-card:active {
+  transform: scale(0.99);
+}
+
+.note-content-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+.view-more-hint {
+  margin-top: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--primary-600);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: transform 0.15s ease;
+}
+
+.clickable-card:hover .view-more-hint {
+  transform: translateX(3px);
+  color: var(--primary-700);
+}
+
+/* ===================================================================
+   NOTE FULL VIEW MODAL
+   =================================================================== */
+
+.modal-view-card {
+  max-width: 640px;
+}
+
+.badge-view {
+  background-color: var(--primary-50);
+  color: var(--primary-600);
+}
+
+.view-note-meta-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--slate-100);
+  flex-wrap: wrap;
+}
+
+.view-note-date {
+  font-size: 0.8rem;
+  color: var(--slate-500);
+  font-weight: 500;
+}
+
+.view-note-body {
+  margin-bottom: 16px;
+}
+
+.view-body-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.view-note-content-box {
+  background-color: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--slate-800);
+  max-height: 380px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ===================================================================
+   RESPONSIVE DESIGN (MOBILE & TABLET)
+   =================================================================== */
+
 @media (max-width: 900px) {
   .controls-grid {
     grid-template-columns: 1fr;
@@ -1207,13 +1418,58 @@ textarea {
 
 @media (max-width: 640px) {
   .app-nav {
-    padding: 10px 16px;
+    padding: 10px 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .nav-brand-title {
+    font-size: 0.95rem;
+  }
+  .nav-brand-sub {
+    font-size: 0.7rem;
   }
   .dashboard-main {
-    padding: 16px 14px 40px;
+    padding: 14px 12px 60px;
+  }
+  .welcome-title {
+    font-size: 1.35rem;
+  }
+  .zone-pill-highlight {
+    font-size: 0.72rem;
+    padding: 3px 8px;
+  }
+  .stats-cards-row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .stat-pill {
+    padding: 6px 8px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .stat-label {
+    font-size: 0.65rem;
+  }
+  .stat-value {
+    font-size: 1rem;
+  }
+  .controls-card {
+    padding: 14px 16px;
+  }
+  .btn-add-note {
+    width: 100%;
+    height: 46px;
   }
   .modal-form-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .modal-card {
+    padding: 20px 16px;
+    max-width: 95vw;
   }
   .toolbar-section {
     flex-direction: column;
@@ -1223,11 +1479,22 @@ textarea {
     flex-direction: column;
     align-items: stretch;
   }
+  .filter-group {
+    flex-direction: column;
+  }
+  .filter-select {
+    width: 100%;
+  }
   .notes-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .note-card {
+    padding: 14px;
   }
   .system-status-cluster {
     display: none;
   }
 }
+
 

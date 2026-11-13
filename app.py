@@ -1,8 +1,8 @@
 """
 Personal User Notes Management Web App - Streamlit Backend
-Combines Python Streamlit as the backend with an embedded modern HTML/CSS/JavaScript
-frontend, Firebase Authentication for user access control, and an Excel database
-synchronized with Google Drive.
+Combines Python Streamlit with embedded HTML/CSS/JavaScript frontend,
+Firebase Authentication (username/password login), Excel database sync with Google Drive,
+and master data from Running List.xlsx filtered by user Zone.
 """
 
 import os
@@ -31,10 +31,11 @@ if BASE_DIR not in sys.path:
 from firebase_auth import FirebaseAuthManager
 from google_drive import GoogleDriveManager
 from excel_manager import ExcelNotesManager
+from running_list_manager import RunningListManager
 
-# Page Configuration - Full Width, Clean Title
+# Page Configuration - Full Width
 st.set_page_config(
-    page_title="Personal Notes Hub",
+    page_title="Personal Notes Management - Running List Hub",
     page_icon="📝",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -74,7 +75,7 @@ st.markdown(
             max-width: 100% !important;
             margin: 0 !important;
         }
-        /* Iframe styling */
+        /* Full-screen iframe styling */
         iframe {
             width: 100% !important;
             min-height: 100vh !important;
@@ -93,10 +94,11 @@ def get_backend_managers():
     drive_mgr = GoogleDriveManager()
     auth_mgr = FirebaseAuthManager()
     excel_mgr = ExcelNotesManager(drive_manager=drive_mgr)
-    return drive_mgr, auth_mgr, excel_mgr
+    running_list_mgr = RunningListManager()
+    return drive_mgr, auth_mgr, excel_mgr, running_list_mgr
 
 
-drive_manager, auth_manager, excel_manager = get_backend_managers()
+drive_manager, auth_manager, excel_manager, running_list_manager = get_backend_managers()
 
 # Initialize Streamlit Session State
 if "authenticated" not in st.session_state:
@@ -137,14 +139,13 @@ def handle_component_action(event: dict):
 
     logger.info(f"Processing backend action: {action}")
 
-    # Action 1: User Login
+    # Action 1: User Login with Username and Password
     if action == "login":
         id_token = payload.get("idToken")
-        email = payload.get("email")
+        username = payload.get("username") or payload.get("email")
         password = payload.get("password")
 
         if id_token:
-            # Client provided Firebase ID token directly
             verified_user = auth_manager.verify_id_token(id_token)
             if verified_user:
                 st.session_state["authenticated"] = True
@@ -156,17 +157,20 @@ def handle_component_action(event: dict):
                 st.session_state["error"] = None
             else:
                 st.session_state["authenticated"] = False
-                st.session_state["error"] = "Invalid or expired Firebase authentication token."
+                st.session_state["error"] = "Invalid or expired authentication token."
         else:
-            # Email & password login
-            ok, user_data, err_msg = auth_manager.sign_in_with_password(email, password)
+            ok, user_data, err_msg = auth_manager.sign_in_with_username_or_email(
+                username, password
+            )
             if ok and user_data:
                 st.session_state["authenticated"] = True
                 st.session_state["user"] = user_data
                 st.session_state["notes"] = excel_manager.get_notes_for_user(
                     user_data["uid"]
                 )
-                st.session_state["toast"] = f"Welcome back, {user_data['name']}!"
+                st.session_state["toast"] = (
+                    f"Welcome back, {user_data['name']}! ({user_data.get('zone', 'Zone')})"
+                )
                 st.session_state["error"] = None
             else:
                 st.session_state["authenticated"] = False
@@ -174,24 +178,9 @@ def handle_component_action(event: dict):
 
         st.rerun()
 
-    # Action 2: User Registration
+    # Action 2: User Registration (Disabled for security)
     elif action == "signup":
-        email = payload.get("email")
-        password = payload.get("password")
-        display_name = payload.get("displayName")
-
-        ok, user_data, err_msg = auth_manager.sign_up_with_password(
-            email, password, display_name
-        )
-        if ok and user_data:
-            st.session_state["authenticated"] = True
-            st.session_state["user"] = user_data
-            st.session_state["notes"] = []
-            st.session_state["toast"] = f"Account created! Welcome, {user_data['name']}!"
-            st.session_state["error"] = None
-        else:
-            st.session_state["error"] = err_msg or "Registration failed."
-
+        st.session_state["error"] = "Public registration is disabled. Please use your assigned officer credentials."
         st.rerun()
 
     # Action 3: User Logout
@@ -203,23 +192,31 @@ def handle_component_action(event: dict):
         st.session_state["error"] = None
         st.rerun()
 
-    # Action 4: Add New Note
+    # Action 4: Add New Note (Instant Local Save + Background Drive Sync)
     elif action == "add_note":
         if not st.session_state.get("authenticated") or not st.session_state.get("user"):
             st.session_state["error"] = "Session expired. Please sign in again."
             st.rerun()
 
-        # Strict security: Use authenticated user UID from server session, NEVER from client
         user_uid = st.session_state["user"]["uid"]
         username = st.session_state["user"]["name"]
-        sel1 = payload.get("selection1", "General")
-        sel2 = payload.get("selection2", "Medium")
+        user_zone = st.session_state["user"].get("zone", "")
+
+        customer_name = payload.get("customer_name") or payload.get("selection1", "")
+        farm_name = payload.get("farm_name") or payload.get("selection2", "")
         content = payload.get("content", "")
 
         try:
-            excel_manager.add_note(user_uid, username, sel1, sel2, content)
-            st.session_state["notes"] = excel_manager.get_notes_for_user(user_uid)
-            st.session_state["toast"] = "Note saved to Google Drive Excel!"
+            excel_manager.add_note(
+                user_uid=user_uid,
+                username=username,
+                customer_name=customer_name,
+                farm_name=farm_name,
+                content=content,
+                zone=user_zone,
+            )
+            st.session_state["notes"] = excel_manager.get_notes_for_user(user_uid, force_remote_sync=False)
+            st.session_state["toast"] = "Note saved & syncing to Google Drive!"
             st.session_state["error"] = None
         except Exception as e:
             logger.error(f"Error adding note: {e}", exc_info=True)
@@ -227,32 +224,7 @@ def handle_component_action(event: dict):
 
         st.rerun()
 
-    # Action 5: Edit Note
-    elif action == "edit_note":
-        if not st.session_state.get("authenticated") or not st.session_state.get("user"):
-            st.session_state["error"] = "Session expired. Please sign in again."
-            st.rerun()
-
-        user_uid = st.session_state["user"]["uid"]
-        note_id = payload.get("note_id")
-        sel1 = payload.get("selection1", "General")
-        sel2 = payload.get("selection2", "Medium")
-        content = payload.get("content", "")
-
-        try:
-            excel_manager.update_note(note_id, user_uid, sel1, sel2, content)
-            st.session_state["notes"] = excel_manager.get_notes_for_user(user_uid)
-            st.session_state["toast"] = "Note updated successfully!"
-            st.session_state["error"] = None
-        except PermissionError as pe:
-            st.session_state["error"] = str(pe)
-        except Exception as e:
-            logger.error(f"Error updating note: {e}", exc_info=True)
-            st.session_state["error"] = f"Failed to update note: {str(e)}"
-
-        st.rerun()
-
-    # Action 6: Delete Note
+    # Action 5: Delete Note
     elif action == "delete_note":
         if not st.session_state.get("authenticated") or not st.session_state.get("user"):
             st.session_state["error"] = "Session expired. Please sign in again."
@@ -263,7 +235,7 @@ def handle_component_action(event: dict):
 
         try:
             excel_manager.delete_note(note_id, user_uid)
-            st.session_state["notes"] = excel_manager.get_notes_for_user(user_uid)
+            st.session_state["notes"] = excel_manager.get_notes_for_user(user_uid, force_remote_sync=False)
             st.session_state["toast"] = "Note deleted successfully."
             st.session_state["error"] = None
         except PermissionError as pe:
@@ -274,12 +246,16 @@ def handle_component_action(event: dict):
 
         st.rerun()
 
-    # Action 7: Sync / Refresh Notes
+    # Action 6: Sync / Refresh Notes from Google Drive
     elif action == "refresh":
         if st.session_state.get("authenticated") and st.session_state.get("user"):
             user_uid = st.session_state["user"]["uid"]
-            st.session_state["notes"] = excel_manager.get_notes_for_user(user_uid)
-            st.session_state["toast"] = "Synchronized with Google Drive."
+            synced = excel_manager.sync_with_drive_now()
+            st.session_state["notes"] = excel_manager.get_notes_for_user(user_uid, force_remote_sync=True)
+            if synced:
+                st.session_state["toast"] = "Synchronized with Google Drive Excel."
+            else:
+                st.session_state["toast"] = "Notes refreshed."
         st.rerun()
 
 
@@ -291,10 +267,18 @@ error_to_send = st.session_state.get("error")
 st.session_state["toast"] = None
 st.session_state["error"] = None
 
+# Get zone-filtered customer & farm data for the current user
+current_user = st.session_state.get("user")
+user_zone = current_user.get("zone", "Chilaw") if current_user else "Chilaw"
+zone_bundle = running_list_manager.get_zone_data_bundle(user_zone)
+all_zones = running_list_manager.get_all_zones()
+
 component_state = {
     "authenticated": st.session_state.get("authenticated", False),
-    "user": st.session_state.get("user", None),
+    "user": current_user,
     "notes": st.session_state.get("notes", []),
+    "running_list": zone_bundle,
+    "all_zones": all_zones,
     "backend_status": {
         "drive": drive_manager.get_status(),
         "firebase": {
@@ -314,7 +298,5 @@ event_data = notes_custom_component(
     default=None,
 )
 
-# Process any action emitted from the frontend iframe
 if event_data:
     handle_component_action(event_data)
-

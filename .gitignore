@@ -1,0 +1,27 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment files and credentials (CRITICAL: Do NOT commit secrets!)
+.env
+*.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+secrets.toml
+!.streamlit/secrets.toml.example
+config/service_account.json
+!config/service_account.json.example
+
+# Runtime databases, locks, and logs
+*.lock
+data/personal_notes.xlsx
+personal_notes.xlsx
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
